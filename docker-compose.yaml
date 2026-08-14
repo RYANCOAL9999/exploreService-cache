@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Redis cache container
+  redis:
+    # Using the highly optimized, stable Alpine-based Redis image to keep container footprints minimal
+    image: redis:7.2.4-alpine
+    container_name: explore_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    # ARCHITECTURAL PERFORMANCE TUNING:
+    # --appendonly yes: Enforces AOF logging every second to prevent data evaporation during pod crashes.
+    # --maxmemory 2gb: Caps the in-memory cache container usage to strictly protect the 6GB RAM EKS host profile.
+    # --maxmemory-policy allkeys-lru: Automatically evicts the least-recently-used swiping history keys when memory spikes.
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    healthcheck:
+      # PURE O(1) ENVIRONMENT DETECTION:
+      # Uses the standard redis-cli ping handshake command to ensure the cache pipeline is hot and active.
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # 💡 Added: Your Go gRPC Service container
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: explore_service_cache
+    restart: always
+    ports:
+      - "50052:50052"
+    environment:
+      - PORT=50052
+      # 💡 Dynamic DSN pointing to the 'Redis' container service
+      - REDIS_ADDR=localhost:6379
+    depends_on:
+      redis:
+        condition: service_healthy # Only start app when redis is fully ready
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
