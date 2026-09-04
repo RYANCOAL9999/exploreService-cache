@@ -1,6 +1,6 @@
 # Explore Service (High-Concurrency Caching Infrastructure)
 
-A high-performance Go backend optimized with Redis and Singleflight to manage user matchmaking, focusing on preventing cache stampedes and protecting the database.
+A high-performance Go backend optimized with Redis to manage user matchmaking, focusing on preventing cache stampedes and protecting the database.
 
 ## Core Features & Design
 * **Separation of Concerns**: Clean architecture isolating DB (GORM) and cache logic.
